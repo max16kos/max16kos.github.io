@@ -72,6 +72,30 @@
     }
   }
 
+  /* ===== テーマ連動スクロールバー ===== */
+  html{
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink-faint) var(--bg-sunken);
+  }
+  html::-webkit-scrollbar{ width: 6px; }
+  html::-webkit-scrollbar-track{ background: var(--bg-sunken); }
+  html::-webkit-scrollbar-thumb{
+    background: var(--ink-faint);
+    border-radius: 3px;
+  }
+  html::-webkit-scrollbar-thumb:hover{ background: var(--ink-dim); }
+
+  .ladder-track{
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--bg-sunken);
+  }
+  .ladder-track::-webkit-scrollbar{ height: 3px; }
+  .ladder-track::-webkit-scrollbar-track{ background: var(--bg-sunken); }
+  .ladder-track::-webkit-scrollbar-thumb{
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html,body{ margin:0; padding:0; }
   html{ touch-action: manipulation; }
@@ -137,7 +161,6 @@
     color: var(--ink-dim);
     display:flex; align-items:center; justify-content:center;
     cursor:pointer;
-    font-size: 17px;
   }
   .icon-btn:active{ background: var(--bg-sunken); }
 
@@ -184,6 +207,7 @@
     background: #000;
     position: relative;
     overflow: hidden;
+    contain: layout paint;
   }
   .viewer-frame{
     position: relative;
@@ -205,20 +229,27 @@
     background: #fff;
     z-index: 5;
     touch-action: none;
+    will-change: left;
   }
   .slider-handle::after{
-    content: "◂▸";
+    content: "";
     position:absolute;
     top:50%; left:50%;
     transform: translate(-50%,-50%);
     width: 44px; height: 44px;
     background: #fff;
-    color: #15171a;
     border-radius:50%;
-    display:flex; align-items:center; justify-content:center;
-    font-size: 14px;
-    letter-spacing:-2px;
     box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  }
+  .sh-icon{
+    position:absolute;
+    top:50%; left:50%;
+    transform: translate(-50%,-50%);
+    width: 44px; height: 44px;
+    display:flex; align-items:center; justify-content:center;
+    z-index: 6;
+    pointer-events:none;
+    color: #15171a;
   }
   .badge{
     position:absolute;
@@ -498,6 +529,8 @@
     justify-content:space-between;
     flex-wrap:wrap;
     gap:6px;
+    content-visibility: auto;
+    contain-intrinsic-size: 0 40px;
   }
 
   /* タブレット横向き・大きめ画面：列数だけ拡張（レイアウト構造は変えない） */
@@ -523,7 +556,12 @@
       <div class="tagline">QQVGA — 16K 解像度シミュレーター</div>
     </div>
     <div class="header-right">
-      <button class="icon-btn" id="themeBtn" aria-label="表示設定">⚙</button>
+      <button class="icon-btn" id="themeBtn" aria-label="表示設定">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -542,7 +580,13 @@
       <div class="badge single" id="badgeSingle">QQVGA</div>
       <div class="badge left" id="badgeLeft" style="display:none;">QQVGA</div>
       <div class="badge right" id="badgeRight" style="display:none;">16K</div>
-      <div class="slider-handle" id="sliderHandle" style="display:none; left:50%;"></div>
+      <div class="slider-handle" id="sliderHandle" style="display:none; left:50%;">
+        <span class="sh-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8.59 16.59 4 12l4.59-4.59L7 6l-6 6 6 6zM15.41 7.41 20 12l-4.59 4.59L17 18l6-6-6-6z"/>
+          </svg>
+        </span>
+      </div>
     </div>
     <div class="viewer-toolbar">
       <span class="tb-status" id="toolbarStatus">画面に合わせて拡大表示中</span>
@@ -575,7 +619,12 @@
       <button class="chip active" data-content="pattern">カラーテストパターン</button>
       <button class="chip" data-content="scene">風景シーン</button>
       <button class="chip" data-content="text">文字・細部チャート</button>
-      <button class="chip" data-content="camera">📷 カメラ映像</button>
+      <button class="chip" data-content="camera">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;flex-shrink:0;" aria-hidden="true">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>カメラ映像
+      </button>
     </div>
   </section>
 
