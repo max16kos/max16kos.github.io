@@ -602,7 +602,7 @@
       <span class="thumb"></span>
     </label>
   </div>
-  <div class="hint" id="cameraHint" style="display:none;">※カメラ映像はブラウザの許可が必要です。許可されない場合は自動でテストパターンに戻ります。映像は端末内のみで処理され、外部には送信されません。</div>
+  <div class="hint" id="cameraHint" style="display:none;">✦ Max Photo 強化中 — シャープネス・コントラスト・彩度・遠景ブーストをリアルタイムで適用しています。映像は端末内のみで処理され、外部には送信されません。カメラの許可が必要です。</div>
 
   <!-- モード切替 -->
   <section>
@@ -623,7 +623,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;flex-shrink:0;" aria-hidden="true">
           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
           <circle cx="12" cy="13" r="4"/>
-        </svg>カメラ映像
+        </svg>カメラ映像 ✦ Max Photo
       </button>
     </div>
   </section>
@@ -698,62 +698,85 @@
   ============================================================ */
   const HT = {
     ready: false,
-    tier: "mid",           // "high" | "mid" | "low"
-    maxDrawPx: 1920*1080,  // 暫定値。ベンチ後に更新
-    targetFps: 30,         // 暫定値。ベンチ後に更新
+    tier: "mid",            // "high" | "mid" | "low"
+    maxDrawPx: 1920*1080,   // 静止コンテンツ上限（ベンチ後更新）
+    camDrawPx:  854*480,    // カメラ+強化処理専用上限（ベンチ後更新）
+    targetFps: 30,          // 目標FPS（ベンチ後更新）
+    camFps: 24,             // カメラ時目標FPS（ベンチ後更新）
     lastFrameTime: 0,
     idle: false,
     idleTimer: null,
-    IDLE_MS: 2000,         // 2秒操作なしでアイドル
+    IDLE_MS: 3000,
 
-    /* ベンチマーク実行（非同期・バックグラウンド） */
+    /* ベンチマーク：描画速度 + ピクセル処理速度を両方計測 */
     async bench(){
-      // 512×288 で drawPatternScene + drawSceneScene を20回走らせて平均msを計測
       const bc = document.createElement("canvas");
       bc.width = 512; bc.height = 288;
-      const bg = bc.getContext("2d");
-      const RUNS = 20;
-      let total = 0;
+      const bg = bc.getContext("2d", { willReadFrequently: true });
+      const RUNS = 12;
+      let drawTotal = 0, pixTotal = 0;
       for(let i = 0; i < RUNS; i++){
+        // 描画速度
         const t0 = performance.now();
         drawPatternScene(bg, 512, 288);
         drawSceneScene(bg, 512, 288);
-        total += performance.now() - t0;
-        if(i % 5 === 4) await new Promise(r => requestAnimationFrame(r));
+        drawTotal += performance.now() - t0;
+        // ピクセル処理速度（カメラ強化の模擬）
+        const t1 = performance.now();
+        const id = bg.getImageData(0, 0, 512, 288);
+        mpEnhance(id.data, 512, 288);
+        bg.putImageData(id, 0, 0);
+        pixTotal += performance.now() - t1;
+        if(i % 4 === 3) await new Promise(r => requestAnimationFrame(r));
       }
-      const avg = total / RUNS;
+      const avgDraw = drawTotal / RUNS;
+      const avgPix  = pixTotal  / RUNS;
       const cores = navigator.hardwareConcurrency || 2;
       const mem   = navigator.deviceMemory || 2;
-      // スコア計算（高いほど高性能）
-      const score = (1000 / Math.max(1, avg)) * 0.7
-                  + (Math.min(cores, 16) / 16) * 100 * 0.2
-                  + (Math.min(mem,   8)  /  8) * 100 * 0.1;
+      // 描画スコア
+      const score = (1000 / Math.max(1, avgDraw)) * 0.6
+                  + (Math.min(cores, 16) / 16) * 100 * 0.25
+                  + (Math.min(mem,   8)  /  8) * 100 * 0.15;
+      // ピクセル処理速度から1フレーム余裕を決定（目安：8ms以内なら高速）
+      const pixFast = avgPix < 8;
 
       if(score >= 75){
-        this.tier = "high";  this.maxDrawPx = 4096*2160; this.targetFps = 60;
+        this.tier      = "high";
+        this.maxDrawPx = 4096*2160;
+        this.camDrawPx = pixFast ? 1280*720 : 854*480;
+        this.targetFps = 60;
+        this.camFps    = pixFast ? 30 : 24;
       } else if(score >= 28){
-        this.tier = "mid";   this.maxDrawPx = 1920*1080; this.targetFps = 30;
+        this.tier      = "mid";
+        this.maxDrawPx = 1920*1080;
+        this.camDrawPx = pixFast ? 854*480 : 640*360;
+        this.targetFps = 30;
+        this.camFps    = pixFast ? 24 : 20;
       } else {
-        this.tier = "low";   this.maxDrawPx = 1280*720;  this.targetFps = 20;
+        this.tier      = "low";
+        this.maxDrawPx = 1280*720;
+        this.camDrawPx = 480*270;
+        this.targetFps = 20;
+        this.camFps    = 15;
       }
       this.ready = true;
-      // キャッシュクリア：ベンチ結果で再描画サイズが変わるため
       Object.keys(offCache).forEach(k => delete offCache[k]);
     },
 
-    /* 描画すべきか判定（フレームスロットリング） */
-    shouldDraw(now){
-      if(!this.ready) return true;  // ベンチ前はスロットなし
-      const minInterval = 1000 / this.targetFps;
-      return (now - this.lastFrameTime) >= minInterval - 0.5;
+    /* 描画すべきか判定 */
+    shouldDraw(now, isCamera){
+      if(!this.ready) return true;
+      const fps = isCamera ? this.camFps : this.targetFps;
+      return (now - this.lastFrameTime) >= (1000 / fps) - 0.5;
     },
 
-    /* 実際に描画するサイズを返す（論理サイズを維持しつつ上限適用） */
-    drawSize(logW, logH){
-      if(!this.ready) return { w: logW, h: logH };
+    /* 実描画サイズを返す */
+    drawSize(logW, logH, isCamera){
+      const cap = isCamera ? this.camDrawPx : this.maxDrawPx;
+      if(!this.ready) return { w: Math.min(logW, 854), h: Math.min(logH, 480) };
       const logPx = logW * logH;
-      if(logPx <= this.maxDrawPx) return { w: logW, h: logH };
-      const scale = Math.sqrt(this.maxDrawPx / logPx);
+      if(logPx <= cap) return { w: logW, h: logH };
+      const scale = Math.sqrt(cap / logPx);
       return {
         w: Math.max(1, Math.round(logW * scale)),
         h: Math.max(1, Math.round(logH * scale))
@@ -837,10 +860,87 @@
   const cameraHint = $("#cameraHint");
 
   /* ============ オフスクリーンキャンバス ============ */
-  // HTエンジンが論理解像度→実描画サイズを決定。UIには論理サイズを渡し続ける。
   const offCache = {};
+
+  // カメラ専用：生映像用（willReadFrequently必須）
+  const camRaw = document.createElement("canvas");
+  const camRawCtx = camRaw.getContext("2d", { willReadFrequently: true });
+
+  /* ---- Max Photo 強化処理（1パス統合・最速版） ----
+     処理順: ノイズ軽減 → コントラスト/明るさ/彩度/遠景ブースト → アンシャープ
+     3本のループを1本にまとめてキャッシュ効率を最大化。
+  */
+  function mpEnhance(data, w, h){
+    const len = data.length;
+    const farH = Math.floor(h * 0.6);
+
+    // ── パス1: ノイズ軽減(3x3平均 15%混合) + コントラスト/明るさ/彩度/遠景 ──
+    const src = new Uint8ClampedArray(data);   // ノイズ除去の元コピー
+    const NR = 0.15, CONTRAST = 1.18, BRIGHT = 10, SAT = 1.2;
+
+    for(let y = 0; y < h; y++){
+      // 遠景ブースト係数（上ほど強く、下60%はゼロ）
+      const distBoost = y < farH ? (1 - y / farH) * 0.12 : 0;
+      const effContrast = CONTRAST * (1 + distBoost);
+
+      for(let x = 0; x < w; x++){
+        const i = (y * w + x) * 4;
+
+        // ノイズ軽減（境界ピクセルはスキップ）
+        let r, g, b;
+        if(y > 0 && y < h-1 && x > 0 && x < w-1){
+          const row = w * 4;
+          r = src[i-row-4]+src[i-row]+src[i-row+4]+src[i-4]+src[i]+src[i+4]+src[i+row-4]+src[i+row]+src[i+row+4];
+          g = src[i-row-3]+src[i-row+1]+src[i-row+5]+src[i-3]+src[i+1]+src[i+5]+src[i+row-3]+src[i+row+1]+src[i+row+5];
+          b = src[i-row-2]+src[i-row+2]+src[i-row+6]+src[i-2]+src[i+2]+src[i+6]+src[i+row-2]+src[i+row+2]+src[i+row+6];
+          r = src[i]   * (1-NR) + (r/9) * NR;
+          g = src[i+1] * (1-NR) + (g/9) * NR;
+          b = src[i+2] * (1-NR) + (b/9) * NR;
+        } else {
+          r = src[i]; g = src[i+1]; b = src[i+2];
+        }
+
+        // 明るさ
+        r += BRIGHT; g += BRIGHT; b += BRIGHT;
+
+        // コントラスト（遠景ブースト込み）
+        r = (r - 128) * effContrast + 128;
+        g = (g - 128) * effContrast + 128;
+        b = (b - 128) * effContrast + 128;
+
+        // 彩度
+        const gray = 0.299*r + 0.587*g + 0.114*b;
+        r = gray + (r - gray) * SAT;
+        g = gray + (g - gray) * SAT;
+        b = gray + (b - gray) * SAT;
+
+        data[i]   = r < 0 ? 0 : r > 255 ? 255 : r;
+        data[i+1] = g < 0 ? 0 : g > 255 ? 255 : g;
+        data[i+2] = b < 0 ? 0 : b > 255 ? 255 : b;
+      }
+    }
+
+    // ── パス2: アンシャープマスク（1パス、前段結果を参照）──
+    const pre = new Uint8ClampedArray(data);
+    const SHARP = 0.65;
+    const row4 = w * 4;
+    for(let y = 1; y < h-1; y++){
+      for(let x = 1; x < w-1; x++){
+        const i = (y * w + x) * 4;
+        for(let c = 0; c < 3; c++){
+          const blur = (pre[i-row4-4+c]+pre[i-row4+c]+pre[i-row4+4+c]+
+                        pre[i-4+c]     +pre[i+c]    +pre[i+4+c]+
+                        pre[i+row4-4+c]+pre[i+row4+c]+pre[i+row4+4+c]) / 9;
+          const v = pre[i+c] + (pre[i+c] - blur) * SHARP;
+          data[i+c] = v < 0 ? 0 : v > 255 ? 255 : v;
+        }
+      }
+    }
+  }
+
   function getRenderedCanvas(logW, logH, type){
-    const ds = HT.drawSize(logW, logH);
+    const isCamera = type === "camera";
+    const ds = HT.drawSize(logW, logH, isCamera);
     const key = type + "-" + ds.w + "x" + ds.h;
     let c = offCache[key];
     if(!c){
@@ -848,8 +948,15 @@
       c.width = ds.w; c.height = ds.h;
       offCache[key] = c;
     }
-    if(type === "camera"){
-      renderContent(c.getContext("2d"), ds.w, ds.h, type);
+    if(isCamera){
+      // 毎フレーム：生映像 → 強化 → キャンバスへ
+      if(camRaw.width !== ds.w || camRaw.height !== ds.h){
+        camRaw.width = ds.w; camRaw.height = ds.h;
+      }
+      renderContent(camRawCtx, ds.w, ds.h, "camera");
+      const imgData = camRawCtx.getImageData(0, 0, ds.w, ds.h);
+      mpEnhance(imgData.data, ds.w, ds.h);
+      c.getContext("2d").putImageData(imgData, 0, 0);
     } else if(!c._rendered){
       renderContent(c.getContext("2d"), ds.w, ds.h, type);
       c._rendered = true;
@@ -1047,11 +1154,13 @@
   function frame(now){
     requestAnimationFrame(frame);
 
-    // HT: アイドル中は描画をスキップ（カメラは常時描画を維持）
-    if(HT.idle && state.content !== "camera") return;
+    const isCamera = state.content === "camera";
 
-    // HT: フレームスロットリング（目標FPS以上は描画しない）
-    if(!HT.shouldDraw(now)) return;
+    // アイドル中はカメラのみ継続（静止コンテンツは停止）
+    if(HT.idle && !isCamera) return;
+
+    // カメラとその他でFPSを分けてスロットリング
+    if(!HT.shouldDraw(now, isCamera)) return;
     HT.lastFrameTime = now;
 
     frameCount++;
@@ -1063,29 +1172,58 @@
     if(state.mode === "single"){
       const r = RES[state.singleIdx];
       const off = getRenderedCanvas(r.w, r.h, state.content);
-      // drawImage dst には論理サイズでなくオフスクリーン実サイズを渡す
       ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, W, H);
     } else {
-      const rl = RES[state.leftIdx];
-      const rr = RES[state.rightIdx];
-      const offL = getRenderedCanvas(rl.w, rl.h, state.content);
-      const offR = getRenderedCanvas(rr.w, rr.h, state.content);
+      // 比較モード
+      if(isCamera){
+        // カメラ比較：強化済みをキャッシュして左右に使い回す（重複処理を防ぐ）
+        const ds = HT.drawSize(1920, 1080, true);
+        if(camRaw.width !== ds.w || camRaw.height !== ds.h){
+          camRaw.width = ds.w; camRaw.height = ds.h;
+        }
+        // 生映像をcamRawに描く
+        renderContent(camRawCtx, ds.w, ds.h, "camera");
 
-      const splitX = W * state.sliderPos;
+        // 左（生映像）
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, W * state.sliderPos, H); ctx.clip();
+        ctx.drawImage(camRaw, 0, 0, ds.w, ds.h, 0, 0, W, H);
+        ctx.restore();
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0,0,splitX,H);
-      ctx.clip();
-      ctx.drawImage(offL, 0,0,offL.width,offL.height, 0,0,W,H);
-      ctx.restore();
+        // 右（強化済み）：強化処理は1回のみ
+        const imgData = camRawCtx.getImageData(0, 0, ds.w, ds.h);
+        mpEnhance(imgData.data, ds.w, ds.h);
+        // 一時キャンバスに書き戻し
+        let tmpC = offCache["_camTmp"];
+        if(!tmpC || tmpC.width !== ds.w || tmpC.height !== ds.h){
+          tmpC = document.createElement("canvas");
+          tmpC.width = ds.w; tmpC.height = ds.h;
+          offCache["_camTmp"] = tmpC;
+        }
+        tmpC.getContext("2d").putImageData(imgData, 0, 0);
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(splitX,0,W-splitX,H);
-      ctx.clip();
-      ctx.drawImage(offR, 0,0,offR.width,offR.height, 0,0,W,H);
-      ctx.restore();
+        ctx.save();
+        ctx.beginPath(); ctx.rect(W * state.sliderPos, 0, W, H); ctx.clip();
+        ctx.drawImage(tmpC, 0, 0, ds.w, ds.h, 0, 0, W, H);
+        ctx.restore();
+      } else {
+        // 静止コンテンツ比較（従来通り）
+        const rl = RES[state.leftIdx];
+        const rr = RES[state.rightIdx];
+        const offL = getRenderedCanvas(rl.w, rl.h, state.content);
+        const offR = getRenderedCanvas(rr.w, rr.h, state.content);
+        const splitX = W * state.sliderPos;
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, splitX, H); ctx.clip();
+        ctx.drawImage(offL, 0,0,offL.width,offL.height, 0,0,W,H);
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(splitX, 0, W-splitX, H); ctx.clip();
+        ctx.drawImage(offR, 0,0,offR.width,offR.height, 0,0,W,H);
+        ctx.restore();
+      }
     }
   }
 
@@ -1205,9 +1343,14 @@
     document.querySelectorAll(".mode-btn").forEach(b=>b.classList.toggle("active", b.dataset.mode===mode));
     $("#singleControls").style.display = mode==="single" ? "" : "none";
     $("#compareControls").style.display = mode==="compare" ? "" : "none";
-    toolbarStatus.textContent = mode==="single"
-      ? "画面に合わせて拡大表示中"
-      : "ハンドルをドラッグして比較";
+    const isCamera = state.content === "camera";
+    if(mode === "compare" && isCamera){
+      toolbarStatus.textContent = "左: オリジナル ／ 右: Max Photo 強化";
+    } else {
+      toolbarStatus.textContent = mode==="single"
+        ? (isCamera ? "Max Photo 強化中" : "画面に合わせて拡大表示中")
+        : "ハンドルをドラッグして比較";
+    }
     updateInfoPanels();
     updateBadgesAndLadder();
   }
