@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#15171a">
+<title>Max 16K+ ｜ 解像度体験・比較サイト</title>
+<style>
+  :root{
+    --sans: -apple-system, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    --mono: "SF Mono", "JetBrains Mono", "Consolas", monospace;
+    --radius: 10px;
+    --tap: 46px; /* 最小タップサイズ */
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+  }
+
+  /* ライトモード（既定） */
+  :root, :root[data-theme="light"]{
+    --bg: #ffffff;
+    --bg-raised: #f4f5f7;
+    --bg-sunken: #eceef1;
+    --line: #dfe2e6;
+    --line-soft: #ebedf0;
+    --ink: #15171a;
+    --ink-dim: #5b6068;
+    --ink-faint: #8b9098;
+    --accent: #3457d5;
+    --accent-bg: #eaeefb;
+    --accent-2: #b5651d;
+    --accent-2-bg: #f7ece1;
+    --shadow: 0 2px 10px rgba(20,20,30,0.08);
+  }
+
+  /* ダークモード */
+  :root[data-theme="dark"]{
+    --bg: #15161a;
+    --bg-raised: #1d1f24;
+    --bg-sunken: #101114;
+    --line: #2c2e34;
+    --line-soft: #25262b;
+    --ink: #e9eaed;
+    --ink-dim: #9a9ea6;
+    --ink-faint: #6b6f77;
+    --accent: #7c93f0;
+    --accent-bg: #232a47;
+    --accent-2: #d7995f;
+    --accent-2-bg: #3a2c1d;
+    --shadow: 0 2px 12px rgba(0,0,0,0.4);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root[data-theme="auto"]{
+      --bg: #15161a;
+      --bg-raised: #1d1f24;
+      --bg-sunken: #101114;
+      --line: #2c2e34;
+      --line-soft: #25262b;
+      --ink: #e9eaed;
+      --ink-dim: #9a9ea6;
+      --ink-faint: #6b6f77;
+      --accent: #7c93f0;
+      --accent-bg: #232a47;
+      --accent-2: #d7995f;
+      --accent-2-bg: #3a2c1d;
+      --shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ margin:0; padding:0; }
+  html{ touch-action: manipulation; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x:hidden;
+    transition: background .2s ease, color .2s ease;
+    font-size: 15px;
+    padding-bottom: calc(24px + var(--safe-b));
+    padding-left: var(--safe-l);
+    padding-right: var(--safe-r);
+  }
+  button, input{ font-size: 100%; }
+
+  .wrap{
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  /* ===== ヘッダー（コンパクト・スマホ幅基準） ===== */
+  header{
+    padding: calc(14px + var(--safe-t)) 0 14px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 40;
+  }
+  .brand{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+  .brand .logo{
+    font-weight: 800;
+    font-size: 21px;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  .brand .logo span{ color: var(--accent); }
+  .brand .tagline{
+    color: var(--ink-faint);
+    font-size: 10.5px;
+    letter-spacing: 0.01em;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .header-right{ display:flex; align-items:center; gap: 8px; flex-shrink:0; }
+
+  .icon-btn{
+    width: var(--tap); height: var(--tap);
+    min-width: var(--tap); min-height: var(--tap);
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--bg-raised);
+    color: var(--ink-dim);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    font-size: 17px;
+  }
+  .icon-btn:active{ background: var(--bg-sunken); }
+
+  .theme-toggle{ position:relative; }
+  .theme-menu{
+    position: fixed;
+    inset: auto 0 0 0;
+    background: var(--bg-raised);
+    border-top: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+    box-shadow: var(--shadow);
+    padding: 8px 8px calc(10px + var(--safe-b));
+    display:none;
+    z-index: 200;
+  }
+  .theme-menu.open{ display:block; animation: sheetUp .18s ease; }
+  @keyframes sheetUp{ from{ transform: translateY(12px); opacity:0;} to{ transform:none; opacity:1; } }
+  .theme-menu-backdrop{
+    position:fixed; inset:0; background: rgba(0,0,0,0.32);
+    display:none; z-index: 190;
+  }
+  .theme-menu-backdrop.open{ display:block; }
+  .theme-menu-handle{
+    width: 36px; height:4px; border-radius:2px;
+    background: var(--line); margin: 4px auto 10px;
+  }
+  .theme-opt{
+    display:flex; align-items:center; gap:10px;
+    padding: 13px 14px;
+    border-radius: 10px;
+    font-size: 15px;
+    color: var(--ink-dim);
+    min-height: var(--tap);
+  }
+  .theme-opt:active{ background: var(--bg-sunken); }
+  .theme-opt.active{ color: var(--accent); font-weight:700; }
+  .theme-opt .dot{ width:8px; height:8px; border-radius:50%; background: currentColor; opacity:.7; flex-shrink:0; }
+
+  /* ===== ビューア（最優先・最上部固定） ===== */
+  .viewer-shell{
+    margin-top: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #000;
+    position: relative;
+    overflow: hidden;
+  }
+  .viewer-frame{
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background:#000;
+    overflow:hidden;
+    touch-action: none;
+  }
+  .viewer-frame canvas{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    display:block;
+  }
+  .slider-handle{
+    position:absolute;
+    top:0; bottom:0;
+    width: 3px;
+    background: #fff;
+    z-index: 5;
+    touch-action: none;
+  }
+  .slider-handle::after{
+    content: "◂▸";
+    position:absolute;
+    top:50%; left:50%;
+    transform: translate(-50%,-50%);
+    width: 44px; height: 44px;
+    background: #fff;
+    color: #15171a;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 14px;
+    letter-spacing:-2px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  }
+  .badge{
+    position:absolute;
+    top:8px;
+    font-size: 11px;
+    font-family: var(--mono);
+    letter-spacing:0.02em;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: rgba(20,20,24,0.62);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #fff;
+    z-index: 4;
+    pointer-events:none;
+    backdrop-filter: blur(3px);
+  }
+  .badge.left{ left:8px; }
+  .badge.right{ right:8px; }
+  .badge.single{ left:8px; }
+
+  .viewer-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 9px 10px;
+    background: var(--bg-raised);
+    border-top: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--ink-faint);
+    gap: 8px;
+  }
+  .tb-status{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .tb-btn{
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink-dim);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 9px 12px;
+    min-height: 38px;
+    flex-shrink:0;
+  }
+  .tb-btn:active{ background: var(--bg-sunken); }
+
+  .smooth-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 12px 2px 4px;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .switch{
+    position:relative; width: 46px; height:28px; flex-shrink:0;
+  }
+  .switch input{ position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; }
+  .switch .track{
+    position:absolute; inset:0; background: var(--line); border-radius:14px; transition: background .15s ease;
+  }
+  .switch .thumb{
+    position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition: transform .15s ease;
+  }
+  .switch input:checked + .track{ background: var(--accent); }
+  .switch input:checked + .track + .thumb{ transform: translateX(18px); }
+
+  .hint{
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  /* ===== セクション共通 ===== */
+  section{ margin-top: 22px; }
+  .eyebrow{
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0 0 8px;
+    font-weight: 700;
+  }
+  h1.section-title{
+    font-weight: 800;
+    font-size: 18px;
+    margin: 0 0 5px;
+    letter-spacing: -0.01em;
+  }
+  .section-desc{
+    color: var(--ink-dim);
+    font-size: 12.5px;
+    line-height:1.65;
+    margin: 0 0 14px;
+  }
+
+  /* ===== モード切替（タブ） ===== */
+  .mode-row{
+    display:flex; gap:6px;
+    background: var(--bg-raised);
+    padding: 4px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+  }
+  .mode-btn{
+    flex:1;
+    background: transparent;
+    border: none;
+    border-radius: 7px;
+    color: var(--ink-dim);
+    font-size: 13.5px;
+    font-weight: 700;
+    padding: 12px 8px;
+    min-height: var(--tap);
+  }
+  .mode-btn.active{
+    color: var(--accent);
+    background: var(--bg);
+    box-shadow: var(--shadow);
+  }
+
+  /* ===== コンテンツ選択（横スクロールチップ） ===== */
+  .content-row{
+    display:flex; gap:8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 2px 2px 6px;
+    margin: 0 -2px;
+  }
+  .content-row::-webkit-scrollbar{ display:none; }
+  .chip{
+    flex-shrink:0;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-dim);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 16px;
+    height: 40px;
+    display:flex; align-items:center;
+  }
+  .chip.active{
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-bg);
+  }
+
+  /* ===== 解像度セレクター（折り返しグリッド・タップ最適化） ===== */
+  .res-section{ margin-bottom: 16px; }
+  .res-section .res-label{
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-faint);
+    letter-spacing: 0.02em;
+    margin-bottom: 8px;
+  }
+  .res-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+  }
+  .res-btn{
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--ink-dim);
+    padding: 11px 4px 9px;
+    text-align:center;
+    min-height: var(--tap);
+  }
+  .res-btn:active{ background: var(--bg-sunken); }
+  .res-btn .rl{
+    font-size: 13.5px;
+    font-weight:800;
+    color: var(--ink);
+    display:block;
+    line-height:1.2;
+  }
+  .res-btn .rd{
+    font-size: 9px;
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    display:block;
+    margin-top: 2px;
+  }
+  .res-btn.active{
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .res-btn.active .rl{ color: var(--accent); }
+  .res-btn.b-left.active{ border-color: var(--accent-2); background: var(--accent-2-bg); }
+  .res-btn.b-left.active .rl{ color: var(--accent-2); }
+
+  /* ===== 情報パネル ===== */
+  .info-panels{ display:flex; flex-direction:column; gap: 12px; margin-top: 4px; }
+  .info-card{
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 14px 16px;
+  }
+  .info-card.left-acc{ border-left: 3px solid var(--accent-2); }
+  .info-card.right-acc{ border-left: 3px solid var(--accent); }
+  .info-card .ic-title{
+    font-size: 17px;
+    font-weight:800;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .info-card .ic-sub{
+    font-size: 10.5px;
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    margin-bottom: 12px;
+  }
+  .stat-row{
+    display:flex;
+    justify-content:space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 12.5px;
+  }
+  .stat-row:last-child{ border-bottom:none; }
+  .stat-row .k{ color: var(--ink-faint); }
+  .stat-row .v{ color: var(--ink); font-weight:700; font-family: var(--mono); }
+  .usage-note{
+    margin-top: 11px;
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    line-height: 1.6;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  /* ===== ラダー（横スクロール） ===== */
+  .ladder-track{
+    position:relative;
+    display:flex;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    margin-top: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ladder-mark{
+    flex: 1 0 64px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    padding: 14px 4px;
+    border-right: 1px solid var(--line-soft);
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    min-height: var(--tap);
+  }
+  .ladder-mark:last-child{ border-right:none; }
+  .ladder-mark.on{ color: var(--accent); font-weight:800; background: var(--accent-bg); }
+  .ladder-mark .lm-bar{
+    width: 100%; height:3px; border-radius:2px; background: var(--line);
+  }
+  .ladder-mark.on .lm-bar{ background: var(--accent); }
+
+  footer{
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-faint);
+    font-size: 10.5px;
+    font-family: var(--mono);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+
+  /* タブレット横向き・大きめ画面：列数だけ拡張（レイアウト構造は変えない） */
+  @media (min-width: 560px){
+    .res-grid{ grid-template-columns: repeat(6, 1fr); }
+    .wrap{ padding: 0 22px; }
+  }
+
+  /* 横向き（landscape）でビューアの高さを抑える */
+  @media (orientation: landscape) and (max-height: 500px){
+    .viewer-frame{ aspect-ratio: 16/7; }
+    header{ position: static; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="logo">MAX<span>16K+</span></div>
+      <div class="tagline">QQVGA — 16K 解像度シミュレーター</div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="themeBtn" aria-label="表示設定">⚙</button>
+    </div>
+  </header>
+
+  <div class="theme-menu-backdrop" id="themeBackdrop"></div>
+  <div class="theme-menu" id="themeMenu">
+    <div class="theme-menu-handle"></div>
+    <div class="theme-opt" data-theme="auto"><span class="dot"></span>システムに合わせる</div>
+    <div class="theme-opt" data-theme="light"><span class="dot"></span>ライトモード</div>
+    <div class="theme-opt" data-theme="dark"><span class="dot"></span>ダークモード</div>
+  </div>
+
+  <!-- ビューア：最初に見える位置に配置 -->
+  <div class="viewer-shell">
+    <div class="viewer-frame" id="viewerFrame">
+      <canvas id="mainCanvas"></canvas>
+      <div class="badge single" id="badgeSingle">QQVGA</div>
+      <div class="badge left" id="badgeLeft" style="display:none;">QQVGA</div>
+      <div class="badge right" id="badgeRight" style="display:none;">16K</div>
+      <div class="slider-handle" id="sliderHandle" style="display:none; left:50%;"></div>
+    </div>
+    <div class="viewer-toolbar">
+      <span class="tb-status" id="toolbarStatus">画面に合わせて拡大表示中</span>
+      <button class="tb-btn" id="fullscreenBtn">全画面</button>
+    </div>
+  </div>
+
+  <div class="smooth-row">
+    <span>滑らか補間（動画再生に近い表示）</span>
+    <label class="switch">
+      <input type="checkbox" id="smoothToggle" checked>
+      <span class="track"></span>
+      <span class="thumb"></span>
+    </label>
+  </div>
+  <div class="hint" id="cameraHint" style="display:none;">※カメラ映像はブラウザの許可が必要です。許可されない場合は自動でテストパターンに戻ります。映像は端末内のみで処理され、外部には送信されません。</div>
+
+  <!-- モード切替 -->
+  <section>
+    <div class="mode-row">
+      <button class="mode-btn active" data-mode="single">単体体験</button>
+      <button class="mode-btn" data-mode="compare">比較スライダー</button>
+    </div>
+  </section>
+
+  <!-- コンテンツ選択 -->
+  <section>
+    <div class="eyebrow">表示コンテンツ</div>
+    <div class="content-row" id="contentRow">
+      <button class="chip active" data-content="pattern">カラーテストパターン</button>
+      <button class="chip" data-content="scene">風景シーン</button>
+      <button class="chip" data-content="text">文字・細部チャート</button>
+      <button class="chip" data-content="camera">📷 カメラ映像</button>
+    </div>
+  </section>
+
+  <!-- 単体モード：解像度選択 -->
+  <section id="singleControls">
+    <div class="res-section">
+      <div class="res-label">解像度を選択</div>
+      <div class="res-grid" id="resGridSingle"></div>
+    </div>
+  </section>
+
+  <!-- 比較モード：解像度選択 -->
+  <section id="compareControls" style="display:none;">
+    <div class="res-section">
+      <div class="res-label" style="color:var(--accent-2);">左側（A）の解像度</div>
+      <div class="res-grid" id="resGridLeft"></div>
+    </div>
+    <div class="res-section">
+      <div class="res-label" style="color:var(--accent);">右側（B）の解像度</div>
+      <div class="res-grid" id="resGridRight"></div>
+    </div>
+  </section>
+
+  <!-- 解像度ラダー -->
+  <section class="ladder">
+    <div class="eyebrow">解像度ラダー</div>
+    <h1 class="section-title">QQVGA から 16K まで、18段階</h1>
+    <p class="section-desc">タップで切り替え。横にスクロールできます。</p>
+    <div class="ladder-track" id="ladderMarks"></div>
+  </section>
+
+  <!-- 情報パネル -->
+  <section>
+    <div class="info-panels" id="infoPanels"></div>
+  </section>
+
+  <footer>
+    <span>MAX 16K+</span>
+    <span id="pixelCounter">—</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ テーマ管理 ============ */
+  const THEME_KEY_FALLBACK = { current: "auto" };
+  function applyTheme(theme){
+    document.documentElement.setAttribute("data-theme", theme);
+    document.querySelectorAll(".theme-opt").forEach(o=>{
+      o.classList.toggle("active", o.dataset.theme === theme);
+    });
+    try{ localStorage.setItem("max4k-theme", theme); }catch(e){ THEME_KEY_FALLBACK.current = theme; }
+  }
+  function getStoredTheme(){
+    try{ return localStorage.getItem("max4k-theme") || "auto"; }
+    catch(e){ return THEME_KEY_FALLBACK.current; }
+  }
+  applyTheme(getStoredTheme());
+
+  /* ============================================================
+     HIGH-THROUGHPUT ENGINE（完全透明・UI変更なし）
+     起動直後に端末性能を計測し、以下を自動制御する：
+       1. 描画上限ピクセル数（論理解像度は変えず実描画サイズを制限）
+       2. requestAnimationFrame スロットリング（目標FPSを動的維持）
+       3. アイドル検知（操作なし2秒でrAFを停止、タッチ/マウスで再開）
+       4. コンテンツ変更時のオフスクリーンキャッシュ選択的無効化
+     ユーザーへの告知・UIの追加は一切行わない。
+  ============================================================ */
+  const HT = {
+    ready: false,
+    tier: "mid",           // "high" | "mid" | "low"
+    maxDrawPx: 1920*1080,  // 暫定値。ベンチ後に更新
+    targetFps: 30,         // 暫定値。ベンチ後に更新
+    lastFrameTime: 0,
+    idle: false,
+    idleTimer: null,
+    IDLE_MS: 2000,         // 2秒操作なしでアイドル
+
+    /* ベンチマーク実行（非同期・バックグラウンド） */
+    async bench(){
+      // 512×288 で drawPatternScene + drawSceneScene を20回走らせて平均msを計測
+      const bc = document.createElement("canvas");
+      bc.width = 512; bc.height = 288;
+      const bg = bc.getContext("2d");
+      const RUNS = 20;
+      let total = 0;
+      for(let i = 0; i < RUNS; i++){
+        const t0 = performance.now();
+        drawPatternScene(bg, 512, 288);
+        drawSceneScene(bg, 512, 288);
+        total += performance.now() - t0;
+        if(i % 5 === 4) await new Promise(r => requestAnimationFrame(r));
+      }
+      const avg = total / RUNS;
+      const cores = navigator.hardwareConcurrency || 2;
+      const mem   = navigator.deviceMemory || 2;
+      // スコア計算（高いほど高性能）
+      const score = (1000 / Math.max(1, avg)) * 0.7
+                  + (Math.min(cores, 16) / 16) * 100 * 0.2
+                  + (Math.min(mem,   8)  /  8) * 100 * 0.1;
+
+      if(score >= 75){
+        this.tier = "high";  this.maxDrawPx = 4096*2160; this.targetFps = 60;
+      } else if(score >= 28){
+        this.tier = "mid";   this.maxDrawPx = 1920*1080; this.targetFps = 30;
+      } else {
+        this.tier = "low";   this.maxDrawPx = 1280*720;  this.targetFps = 20;
+      }
+      this.ready = true;
+      // キャッシュクリア：ベンチ結果で再描画サイズが変わるため
+      Object.keys(offCache).forEach(k => delete offCache[k]);
+    },
+
+    /* 描画すべきか判定（フレームスロットリング） */
+    shouldDraw(now){
+      if(!this.ready) return true;  // ベンチ前はスロットなし
+      const minInterval = 1000 / this.targetFps;
+      return (now - this.lastFrameTime) >= minInterval - 0.5;
+    },
+
+    /* 実際に描画するサイズを返す（論理サイズを維持しつつ上限適用） */
+    drawSize(logW, logH){
+      if(!this.ready) return { w: logW, h: logH };
+      const logPx = logW * logH;
+      if(logPx <= this.maxDrawPx) return { w: logW, h: logH };
+      const scale = Math.sqrt(this.maxDrawPx / logPx);
+      return {
+        w: Math.max(1, Math.round(logW * scale)),
+        h: Math.max(1, Math.round(logH * scale))
+      };
+    },
+
+    /* アイドル管理 */
+    poke(){
+      this.idle = false;
+      clearTimeout(this.idleTimer);
+      this.idleTimer = setTimeout(() => { this.idle = true; }, this.IDLE_MS);
+    }
+  };
+
+  // ユーザー操作でアイドル解除（タッチ・マウス・キー）
+  ["pointerdown","pointermove","keydown","scroll"].forEach(ev =>
+    document.addEventListener(ev, () => HT.poke(), { passive: true })
+  );
+  HT.poke(); // 初期化
+
+  const themeBtn = document.getElementById("themeBtn");
+  const themeMenu = document.getElementById("themeMenu");
+  const themeBackdrop = document.getElementById("themeBackdrop");
+  function openThemeMenu(){ themeMenu.classList.add("open"); themeBackdrop.classList.add("open"); }
+  function closeThemeMenu(){ themeMenu.classList.remove("open"); themeBackdrop.classList.remove("open"); }
+  themeBtn.addEventListener("click", openThemeMenu);
+  themeBackdrop.addEventListener("click", closeThemeMenu);
+  document.querySelectorAll(".theme-opt").forEach(opt=>{
+    opt.addEventListener("click", ()=>{
+      applyTheme(opt.dataset.theme);
+      closeThemeMenu();
+    });
+  });
+
+  /* ============ 解像度定義 ============ */
+  const RES = [
+    { id:"qqvga", label:"QQVGA",   w:160,   h:120,  tier:"極小・組込機器", note:"組み込み機器や旧式センサー画面で使われた最小クラスの解像度。" },
+    { id:"qcif",  label:"QCIF",    w:176,   h:144,  tier:"旧携帯テレビ電話", note:"2000年代のテレビ電話・初期の携帯動画で使われた規格。" },
+    { id:"qvga",  label:"QVGA",    w:320,   h:240,  tier:"旧携帯・組込機器", note:"ガラケーや初期のゲーム機・組み込み機器の標準解像度。" },
+    { id:"240p",  label:"240p",    w:426,   h:240,  tier:"低画質動画",    note:"低速回線・データ節約用。動画の輪郭がほぼ判別できないレベル。" },
+    { id:"nhd",   label:"nHD",     w:640,   h:360,  tier:"携帯動画標準",   note:"スマホ世代初期の動画・通話で広く使われた解像度。" },
+    { id:"vga",   label:"VGA",     w:640,   h:480,  tier:"旧PC標準",     note:"かつてのPCディスプレイ・初期デジカメの標準解像度。" },
+    { id:"480p",  label:"480p",    w:854,   h:480,  tier:"SD画質",      note:"YouTubeなどの標準画質。スマホ視聴の最低ライン。" },
+    { id:"720p",  label:"HD",      w:1280,  h:720,  tier:"HD動画標準",    note:"多くのスマホ・配信サービスの標準画質。" },
+    { id:"1080p", label:"Full HD", w:1920,  h:1080, tier:"現行標準",     note:"一般的なテレビ・PCモニターの標準解像度。" },
+    { id:"1440p", label:"WQHD",    w:2560,  h:1440, tier:"高解像度配信",   note:"ゲーミングモニターや高解像度配信で使用。1440pとも呼ばれる。" },
+    { id:"2160p", label:"4K UHD",  w:3840,  h:2160, tier:"民生4K標準",    note:"大画面テレビ向け標準画質。Full HDの4倍の画素数。" },
+    { id:"dci4k", label:"DCI 4K",  w:4096,  h:2160, tier:"映画館規格",    note:"デジタルシネマの上映規格。4K UHDよりやや横長。" },
+    { id:"5k",    label:"5K",      w:5120,  h:2880, tier:"高精細ディスプレイ", note:"一体型PCなど高精細ディスプレイで採用される解像度。" },
+    { id:"6k",    label:"6K",      w:6144,  h:3160, tier:"映画撮影・高級モニター", note:"プロ用シネマカメラの撮影解像度として使われる。" },
+    { id:"8k",    label:"8K UHD",  w:7680,  h:4320, tier:"次世代放送規格",  note:"4K UHDの4倍の画素数。次世代放送・大型ディスプレイ向け。" },
+    { id:"10k",   label:"10K",     w:10240, h:4320, tier:"超ワイド・産業用途", note:"超ワイド映像や産業用ビジョンシステムで使われる解像度。" },
+    { id:"12k",   label:"12K",     w:12288, h:6480, tier:"最高峰シネマ機材", note:"最高峰クラスのシネマカメラが記録できる解像度。" },
+    { id:"16k",   label:"16K",     w:15360, h:8640, tier:"研究・展示用途",  note:"研究・大型展示向けの極限解像度。8K UHDの4倍の画素数。" },
+  ];
+  const MAX_RES_IDX = RES.length - 1;
+
+  const state = {
+    mode: "single",
+    content: "pattern",
+    singleIdx: 0,
+    leftIdx: 0,
+    rightIdx: MAX_RES_IDX,
+    smooth: true,
+    sliderPos: 0.5,
+    cameraStream: null,
+    cameraVideo: null,
+  };
+
+  /* ============ DOM ============ */
+  const $ = (s)=>document.querySelector(s);
+  const mainCanvas = $("#mainCanvas");
+  const ctx = mainCanvas.getContext("2d");
+  const viewerFrame = $("#viewerFrame");
+  const sliderHandle = $("#sliderHandle");
+  const badgeSingle = $("#badgeSingle");
+  const badgeLeft = $("#badgeLeft");
+  const badgeRight = $("#badgeRight");
+  const toolbarStatus = $("#toolbarStatus");
+  const pixelCounter = $("#pixelCounter");
+  const cameraHint = $("#cameraHint");
+
+  /* ============ オフスクリーンキャンバス ============ */
+  // HTエンジンが論理解像度→実描画サイズを決定。UIには論理サイズを渡し続ける。
+  const offCache = {};
+  function getRenderedCanvas(logW, logH, type){
+    const ds = HT.drawSize(logW, logH);
+    const key = type + "-" + ds.w + "x" + ds.h;
+    let c = offCache[key];
+    if(!c){
+      c = document.createElement("canvas");
+      c.width = ds.w; c.height = ds.h;
+      offCache[key] = c;
+    }
+    if(type === "camera"){
+      renderContent(c.getContext("2d"), ds.w, ds.h, type);
+    } else if(!c._rendered){
+      renderContent(c.getContext("2d"), ds.w, ds.h, type);
+      c._rendered = true;
+    }
+    return c;
+  }
+
+  /* ============ コンテンツ描画 ============ */
+  let frameCount = 0;
+
+  function drawPatternScene(g, w, h){
+    const bars = ["#c9c9c9","#c9c900","#00c9c9","#00c900","#c900c9","#c90000","#0000c9"];
+    const bw = w / bars.length;
+    for(let i=0;i<bars.length;i++){
+      g.fillStyle = bars[i];
+      g.fillRect(i*bw, 0, bw+1, h*0.62);
+    }
+    const grad = g.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, "#000"); grad.addColorStop(1, "#fff");
+    g.fillStyle = grad;
+    g.fillRect(0, h*0.62, w, h*0.18);
+    g.fillStyle = "#000";
+    g.fillRect(0, h*0.8, w, h*0.2);
+    g.strokeStyle = "#fff";
+    const lineCount = 40;
+    for(let i=0;i<lineCount;i++){
+      const lw = Math.max(0.5, (w/lineCount) * (0.15 + (i/lineCount)*0.5));
+      g.lineWidth = lw;
+      g.beginPath();
+      g.moveTo(i*(w/lineCount)+lw/2, h*0.82);
+      g.lineTo(i*(w/lineCount)+lw/2, h*0.98);
+      g.stroke();
+    }
+    g.strokeStyle = "rgba(255,255,255,0.85)";
+    const cx = w*0.5, cy = h*0.31;
+    for(let r=4; r< h*0.28; r+=Math.max(2, h*0.022)){
+      g.lineWidth = Math.max(1, h*0.006);
+      g.beginPath();
+      g.arc(cx, cy, r, 0, Math.PI*2);
+      g.stroke();
+    }
+  }
+
+  function drawSceneScene(g, w, h){
+    const sky = g.createLinearGradient(0,0,0,h*0.7);
+    sky.addColorStop(0, "#0b3d63");
+    sky.addColorStop(1, "#e8975c");
+    g.fillStyle = sky;
+    g.fillRect(0,0,w,h*0.72);
+
+    g.fillStyle = "#fff3c4";
+    g.beginPath();
+    g.arc(w*0.78, h*0.42, h*0.09, 0, Math.PI*2);
+    g.fill();
+
+    g.fillStyle = "#3a3552";
+    drawMountainRange(g, w, h*0.55, h*0.22, 5, 1);
+    g.fillStyle = "#221f33";
+    drawMountainRange(g, w, h*0.62, h*0.16, 7, 2);
+
+    g.fillStyle = "#16210f";
+    g.fillRect(0, h*0.7, w, h*0.3);
+
+    const blades = 260;
+    for(let i=0;i<blades;i++){
+      const bx = (i * 97) % w;
+      const by = h*0.72 + ((i*53)%(h*0.26));
+      g.fillStyle = (i%3===0) ? "#3f6b2a" : "#274f1d";
+      g.fillRect(bx, by, Math.max(1,w*0.0035), Math.max(2,h*0.018));
+    }
+
+    g.strokeStyle = "rgba(20,20,20,0.8)";
+    g.lineWidth = Math.max(1, h*0.004);
+    for(let i=0;i<4;i++){
+      const bx = w*(0.15+i*0.12);
+      const by = h*0.18 + i*h*0.03;
+      g.beginPath();
+      g.moveTo(bx-6,by); g.quadraticCurveTo(bx,by-6,bx+6,by);
+      g.stroke();
+    }
+  }
+
+  function drawMountainRange(g, w, baseY, amp, peaks, seed){
+    g.beginPath();
+    g.moveTo(0, baseY+amp);
+    for(let x=0;x<=w;x+=w/40){
+      const y = baseY + Math.sin((x/w)*Math.PI*peaks + seed) * amp * 0.5
+                + Math.sin((x/w)*Math.PI*peaks*2.3 + seed*2) * amp * 0.2;
+      g.lineTo(x,y);
+    }
+    g.lineTo(w, baseY+amp*2);
+    g.lineTo(0, baseY+amp*2);
+    g.closePath();
+    g.fill();
+  }
+
+  function drawTextScene(g, w, h){
+    g.fillStyle = "#111";
+    g.fillRect(0,0,w,h);
+    g.fillStyle = "#fff";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+
+    const lines = ["最大16K", "解像度", "テスト123", "ABCDEFG abcdefg", "ピクセル密度の確認用サンプル文字列です"];
+    const sizes = [0.20, 0.13, 0.085, 0.055, 0.032];
+    let y = h*0.12;
+    for(let i=0;i<lines.length;i++){
+      const fs = Math.max(4, h*sizes[i]);
+      g.font = `700 ${fs}px sans-serif`;
+      g.fillText(lines[i], w/2, y);
+      y += fs*1.5;
+    }
+
+    g.strokeStyle = "rgba(255,255,255,0.5)";
+    g.lineWidth = Math.max(0.5, w*0.0015);
+    const gridN = 24;
+    for(let i=1;i<gridN;i++){
+      const x = (w/gridN)*i;
+      g.beginPath(); g.moveTo(x, h*0.78); g.lineTo(x, h*0.98); g.stroke();
+    }
+  }
+
+  function renderContent(g, w, h, type){
+    if(type === "pattern") drawPatternScene(g, w, h);
+    else if(type === "scene") drawSceneScene(g, w, h);
+    else if(type === "text") drawTextScene(g, w, h);
+    else if(type === "camera") drawCameraFrame(g, w, h);
+  }
+
+  /* ============ カメラ ============ */
+  function tryEnableCamera(){
+    if(state.cameraStream){ return; }
+    cameraHint.style.display = "block";
+    navigator.mediaDevices?.getUserMedia?.({ video:{ facingMode:"user" }, audio:false })
+      .then(stream=>{
+        state.cameraStream = stream;
+        const v = document.createElement("video");
+        v.srcObject = stream;
+        v.muted = true;
+        v.playsInline = true;
+        v.play().catch(()=>{});
+        state.cameraVideo = v;
+      })
+      .catch(()=>{
+        toolbarStatus.textContent = "カメラ利用不可。テストパターン表示中。";
+        state.content = "pattern";
+        document.querySelectorAll('.chip[data-content]').forEach(c=>c.classList.remove('active'));
+        document.querySelector('.chip[data-content="pattern"]').classList.add('active');
+      });
+  }
+  function stopCamera(){
+    if(state.cameraStream){
+      state.cameraStream.getTracks().forEach(tr=>tr.stop());
+      state.cameraStream = null;
+      state.cameraVideo = null;
+    }
+    cameraHint.style.display = "none";
+  }
+  function drawCameraFrame(g, w, h){
+    if(state.cameraVideo && state.cameraVideo.readyState >= 2){
+      const v = state.cameraVideo;
+      const vw = v.videoWidth, vh = v.videoHeight;
+      if(vw && vh){
+        const srcAspect = vw/vh, dstAspect = w/h;
+        let sx,sy,sw,sh;
+        if(srcAspect > dstAspect){
+          sh = vh; sw = vh*dstAspect; sy=0; sx=(vw-sw)/2;
+        } else {
+          sw = vw; sh = vw/dstAspect; sx=0; sy=(vh-sh)/2;
+        }
+        g.save();
+        g.translate(w,0); g.scale(-1,1);
+        g.drawImage(v, sx, sy, sw, sh, 0, 0, w, h);
+        g.restore();
+        return;
+      }
+    }
+    g.fillStyle = "#000";
+    g.fillRect(0,0,w,h);
+    g.fillStyle = "#888";
+    g.font = `${Math.max(10,h*0.06)}px sans-serif`;
+    g.textAlign="center"; g.textBaseline="middle";
+    g.fillText("カメラ起動中…", w/2, h/2);
+  }
+
+  /* ============ メインキャンバスのサイズ調整 ============ */
+  function resizeMainCanvas(){
+    const rect = viewerFrame.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    mainCanvas.width = Math.round(rect.width * dpr);
+    mainCanvas.height = Math.round(rect.height * dpr);
+  }
+
+  /* ============ 描画ループ ============ */
+  function frame(now){
+    requestAnimationFrame(frame);
+
+    // HT: アイドル中は描画をスキップ（カメラは常時描画を維持）
+    if(HT.idle && state.content !== "camera") return;
+
+    // HT: フレームスロットリング（目標FPS以上は描画しない）
+    if(!HT.shouldDraw(now)) return;
+    HT.lastFrameTime = now;
+
+    frameCount++;
+    ctx.imageSmoothingEnabled = state.smooth;
+    ctx.imageSmoothingQuality = "high";
+    const W = mainCanvas.width, H = mainCanvas.height;
+    ctx.clearRect(0,0,W,H);
+
+    if(state.mode === "single"){
+      const r = RES[state.singleIdx];
+      const off = getRenderedCanvas(r.w, r.h, state.content);
+      // drawImage dst には論理サイズでなくオフスクリーン実サイズを渡す
+      ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, W, H);
+    } else {
+      const rl = RES[state.leftIdx];
+      const rr = RES[state.rightIdx];
+      const offL = getRenderedCanvas(rl.w, rl.h, state.content);
+      const offR = getRenderedCanvas(rr.w, rr.h, state.content);
+
+      const splitX = W * state.sliderPos;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0,0,splitX,H);
+      ctx.clip();
+      ctx.drawImage(offL, 0,0,offL.width,offL.height, 0,0,W,H);
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(splitX,0,W-splitX,H);
+      ctx.clip();
+      ctx.drawImage(offR, 0,0,offR.width,offR.height, 0,0,W,H);
+      ctx.restore();
+    }
+  }
+
+  /* ============ UI構築：解像度ボタン ============ */
+  function buildResGrid(container, onPick, activeIdxGetter, extraClass){
+    container.innerHTML = "";
+    RES.forEach((r, idx)=>{
+      const btn = document.createElement("button");
+      btn.className = "res-btn" + (extraClass ? " " + extraClass : "");
+      btn.innerHTML = `<span class="rl">${r.label}</span><span class="rd">${r.w}×${r.h}</span>`;
+      btn.addEventListener("click", ()=>{ onPick(idx); refreshResGrids(); updateInfoPanels(); updateBadgesAndLadder(); });
+      if(idx === activeIdxGetter()) btn.classList.add("active");
+      container.appendChild(btn);
+    });
+  }
+  function refreshResGrids(){
+    buildResGrid($("#resGridSingle"), (i)=>{ state.singleIdx=i; }, ()=>state.singleIdx);
+    buildResGrid($("#resGridLeft"), (i)=>{ state.leftIdx=i; }, ()=>state.leftIdx, "b-left");
+    buildResGrid($("#resGridRight"), (i)=>{ state.rightIdx=i; }, ()=>state.rightIdx);
+  }
+
+  /* ============ 情報パネル ============ */
+  function fmtPixels(w,h){
+    const n = w*h;
+    if(n >= 1e6) return (n/1e6).toFixed(2) + " MP";
+    return n.toLocaleString() + " px";
+  }
+  function estBitrate(w,h){
+    const mp = (w*h)/1e6;
+    const mbps = Math.max(0.2, mp * 4.2);
+    return mbps.toFixed(1) + " Mbps（目安）";
+  }
+  function buildInfoCard(r, accentClass){
+    return `
+      <div class="info-card ${accentClass}">
+        <div class="ic-title">${r.label} <span style="color:var(--ink-faint); font-size:13px; font-weight:400;">/ ${r.tier}</span></div>
+        <div class="ic-sub">${r.w} × ${r.h} px</div>
+        <div class="stat-row"><span class="k">総画素数</span><span class="v">${fmtPixels(r.w,r.h)}</span></div>
+        <div class="stat-row"><span class="k">アスペクト比</span><span class="v">${(r.w/r.h).toFixed(2)} : 1</span></div>
+        <div class="stat-row"><span class="k">推奨ビットレート</span><span class="v">${estBitrate(r.w,r.h)}</span></div>
+        <div class="stat-row"><span class="k">16Kとの画素比</span><span class="v">${((r.w*r.h)/(RES[MAX_RES_IDX].w*RES[MAX_RES_IDX].h)*100).toFixed(3)}%</span></div>
+        <div class="usage-note">${r.note}</div>
+      </div>`;
+  }
+  function updateInfoPanels(){
+    const panels = $("#infoPanels");
+    if(state.mode === "single"){
+      panels.innerHTML = buildInfoCard(RES[state.singleIdx], "right-acc");
+      pixelCounter.textContent = `${RES[state.singleIdx].w}×${RES[state.singleIdx].h}`;
+    } else {
+      panels.innerHTML = buildInfoCard(RES[state.leftIdx], "left-acc") + buildInfoCard(RES[state.rightIdx], "right-acc");
+      pixelCounter.textContent = `A: ${RES[state.leftIdx].label} ／ B: ${RES[state.rightIdx].label}`;
+    }
+  }
+
+  /* ============ バッジ・ラダー更新 ============ */
+  function updateBadgesAndLadder(){
+    if(state.mode === "single"){
+      badgeSingle.style.display = "block";
+      badgeLeft.style.display = "none";
+      badgeRight.style.display = "none";
+      sliderHandle.style.display = "none";
+      const r = RES[state.singleIdx];
+      badgeSingle.textContent = `${r.label} ・ ${r.w}×${r.h}`;
+    } else {
+      badgeSingle.style.display = "none";
+      badgeLeft.style.display = "block";
+      badgeRight.style.display = "block";
+      sliderHandle.style.display = "block";
+      badgeLeft.textContent = `A: ${RES[state.leftIdx].label}`;
+      badgeRight.textContent = `B: ${RES[state.rightIdx].label}`;
+    }
+    document.querySelectorAll(".ladder-mark").forEach((m,i)=>{
+      m.classList.toggle("on", state.mode==="single" ? i===state.singleIdx : (i===state.leftIdx || i===state.rightIdx));
+    });
+  }
+
+  function buildLadderMarks(){
+    const wrap = $("#ladderMarks");
+    wrap.innerHTML = "";
+    RES.forEach((r, idx)=>{
+      const m = document.createElement("div");
+      m.className = "ladder-mark";
+      m.innerHTML = `<span>${r.label}</span><span class="lm-bar"></span>`;
+      m.addEventListener("click", ()=>{
+        if(state.mode === "single"){ state.singleIdx = idx; }
+        else { state.leftIdx = idx; }
+        refreshResGrids(); updateInfoPanels(); updateBadgesAndLadder();
+      });
+      wrap.appendChild(m);
+    });
+  }
+
+  /* ============ スライダー（比較モード）ドラッグ・タッチ対応 ============ */
+  function setupSliderDrag(){
+    let dragging = false;
+    function setFromClientX(clientX){
+      const rect = viewerFrame.getBoundingClientRect();
+      let pos = (clientX - rect.left) / rect.width;
+      pos = Math.min(0.98, Math.max(0.02, pos));
+      state.sliderPos = pos;
+      sliderHandle.style.left = (pos*100) + "%";
+    }
+    sliderHandle.addEventListener("pointerdown", (e)=>{ dragging = true; sliderHandle.setPointerCapture(e.pointerId); });
+    sliderHandle.addEventListener("pointermove", (e)=>{ if(dragging) setFromClientX(e.clientX); });
+    sliderHandle.addEventListener("pointerup", ()=>{ dragging=false; });
+    viewerFrame.addEventListener("pointerdown", (e)=>{
+      if(state.mode !== "compare") return;
+      if(e.target === sliderHandle) return;
+      setFromClientX(e.clientX);
+    });
+  }
+
+  /* ============ モード／コンテンツ切替 ============ */
+  function setMode(mode){
+    state.mode = mode;
+    document.querySelectorAll(".mode-btn").forEach(b=>b.classList.toggle("active", b.dataset.mode===mode));
+    $("#singleControls").style.display = mode==="single" ? "" : "none";
+    $("#compareControls").style.display = mode==="compare" ? "" : "none";
+    toolbarStatus.textContent = mode==="single"
+      ? "画面に合わせて拡大表示中"
+      : "ハンドルをドラッグして比較";
+    updateInfoPanels();
+    updateBadgesAndLadder();
+  }
+
+  function setContent(content){
+    state.content = content;
+    document.querySelectorAll(".chip[data-content]").forEach(c=>c.classList.toggle("active", c.dataset.content===content));
+    // HT: コンテンツ切替時は古いキャッシュをクリア（新コンテンツで再描画）
+    Object.keys(offCache).forEach(k => delete offCache[k]);
+    if(content === "camera"){ tryEnableCamera(); }
+    else { stopCamera(); }
+  }
+
+  /* ============ イベント結線 ============ */
+  document.querySelectorAll(".mode-btn").forEach(b=>{
+    b.addEventListener("click", ()=>setMode(b.dataset.mode));
+  });
+  document.querySelectorAll(".chip[data-content]").forEach(c=>{
+    c.addEventListener("click", ()=>setContent(c.dataset.content));
+  });
+  $("#smoothToggle").addEventListener("change", (e)=>{ state.smooth = e.target.checked; });
+  $("#fullscreenBtn").addEventListener("click", ()=>{
+    if(!document.fullscreenElement){ viewerFrame.requestFullscreen?.().catch(()=>{}); }
+    else { document.exitFullscreen?.(); }
+  });
+  window.addEventListener("resize", resizeMainCanvas);
+  window.addEventListener("orientationchange", resizeMainCanvas);
+
+  /* ============ 初期化 ============ */
+  buildLadderMarks();
+  refreshResGrids();
+  updateInfoPanels();
+  updateBadgesAndLadder();
+  setupSliderDrag();
+  resizeMainCanvas();
+  requestAnimationFrame(frame);
+
+  // HT: ベンチマークをバックグラウンドで非同期実行（UIをブロックしない）
+  setTimeout(() => {
+    HT.bench().catch(() => {
+      // ベンチが失敗しても mid 設定のままフォールバック
+      HT.ready = true;
+    });
+  }, 200);
+
+})();
+</script>
+</body>
+</html>
