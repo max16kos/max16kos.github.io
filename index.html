@@ -139,6 +139,9 @@
     letter-spacing: -0.02em;
     line-height: 1.1;
     color: var(--ink);
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
   }
   .brand .logo span{ color: var(--accent); }
   .brand .tagline{
@@ -544,6 +547,78 @@
     .viewer-frame{ aspect-ratio: 16/7; }
     header{ position: static; }
   }
+
+  /* ===== HTデバッグパネル（既定では非表示・隠しジェスチャーかURLパラメータで開く） =====
+     Max High-Throughput の内部状態を見るための診断用シート。
+     一般利用では露出しないが、検証・デモ・サポート対応のために用意。 */
+  .ht-debug-backdrop{
+    position:fixed; inset:0; background: rgba(0,0,0,0.36);
+    display:none; z-index: 290;
+  }
+  .ht-debug-backdrop.open{ display:block; }
+  .ht-debug-sheet{
+    position: fixed;
+    inset: auto 0 0 0;
+    max-height: 82vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+    box-shadow: var(--shadow);
+    padding: 8px 16px calc(16px + var(--safe-b));
+    display:none;
+    z-index: 300;
+  }
+  .ht-debug-sheet.open{ display:block; animation: sheetUp .18s ease; }
+  .ht-debug-handle{ width:36px; height:4px; border-radius:2px; background: var(--line); margin: 6px auto 12px; }
+  .ht-debug-title{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 12px;
+  }
+  .ht-debug-title .name{ font-weight:800; font-size:14px; display:flex; align-items:center; gap:7px; }
+  .ht-debug-title .name .pulse{
+    width:7px; height:7px; border-radius:50%; background: var(--accent);
+    animation: htPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes htPulse{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.35; transform:scale(0.7); } }
+  .ht-debug-close{
+    width:32px; height:32px; border-radius:50%; border:1px solid var(--line);
+    background: var(--bg-raised); color: var(--ink-dim);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ht-debug-grid{
+    display:grid; grid-template-columns: repeat(2,1fr); gap:8px; margin-bottom: 12px;
+  }
+  .ht-debug-stat{
+    border:1px solid var(--line); border-radius:9px; background: var(--bg-raised);
+    padding: 10px 12px;
+  }
+  .ht-debug-stat .l{ font-size:10px; font-family: var(--mono); color: var(--ink-faint); margin-bottom:4px; letter-spacing:0.02em; }
+  .ht-debug-stat .v{ font-size:17px; font-weight:800; font-family: var(--mono); color: var(--ink); }
+  .ht-debug-stat .v small{ font-size:11px; font-weight:600; color: var(--ink-faint); margin-left:2px; }
+  .ht-debug-stat.tier-high .v{ color: var(--accent); }
+  .ht-debug-stat.tier-low .v{ color: #d65b5b; }
+  .ht-debug-note{
+    font-size: 11px; color: var(--ink-faint); line-height:1.6; margin-bottom: 12px;
+  }
+  .ht-debug-log{
+    border:1px solid var(--line); border-radius:9px; background: var(--bg-raised);
+    max-height: 140px; overflow-y:auto; -webkit-overflow-scrolling: touch;
+  }
+  .ht-debug-log-row{
+    display:flex; justify-content:space-between; gap:8px;
+    padding: 8px 12px; font-size: 11px; color: var(--ink-dim);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .ht-debug-log-row:last-child{ border-bottom:none; }
+  .ht-debug-log-row .t{ font-family: var(--mono); color: var(--ink-faint); flex-shrink:0; }
+  .ht-debug-log-row.demote .e{ color:#d65b5b; font-weight:700; }
+  .ht-debug-log-row.bench .e{ color: var(--accent); font-weight:700; }
+  .ht-debug-empty{ padding:16px 12px; text-align:center; color: var(--ink-faint); font-size:11.5px; }
+  .ht-debug-hint{
+    font-size: 10.5px; color: var(--ink-faint); text-align:center; margin-top:10px;
+  }
 </style>
 </head>
 <body>
@@ -552,7 +627,7 @@
 
   <header>
     <div class="brand">
-      <div class="logo">MAX<span>16K+</span></div>
+      <div class="logo" id="logoEl">MAX<span>16K+</span></div>
       <div class="tagline">QQVGA — 16K 解像度シミュレーター</div>
     </div>
     <div class="header-right">
@@ -571,6 +646,60 @@
     <div class="theme-opt" data-theme="auto"><span class="dot"></span>システムに合わせる</div>
     <div class="theme-opt" data-theme="light"><span class="dot"></span>ライトモード</div>
     <div class="theme-opt" data-theme="dark"><span class="dot"></span>ダークモード</div>
+  </div>
+
+  <!-- HTデバッグパネル：ロゴを長押し、または ?ht=debug で開く。通常利用では非表示。 -->
+  <div class="ht-debug-backdrop" id="htDebugBackdrop"></div>
+  <div class="ht-debug-sheet" id="htDebugSheet">
+    <div class="ht-debug-handle"></div>
+    <div class="ht-debug-title">
+      <div class="name"><span class="pulse"></span>Max High-Throughput ／ 内部状態</div>
+      <button class="ht-debug-close" id="htDebugClose" aria-label="閉じる">✕</button>
+    </div>
+    <div class="ht-debug-note">
+      このサイトは裏側で端末の性能を測定し、表示解像度のラベルは変えずに実際の描画負荷だけを自動調整しています。ここではその内部状態を確認できます。
+    </div>
+    <div class="ht-debug-grid">
+      <div class="ht-debug-stat" id="htDbgTier">
+        <div class="l">性能ランク</div>
+        <div class="v" id="htDbgTierVal">計測中…</div>
+      </div>
+      <div class="ht-debug-stat">
+        <div class="l">推定ベンチスコア</div>
+        <div class="v" id="htDbgScore">—</div>
+      </div>
+      <div class="ht-debug-stat">
+        <div class="l">静止コンテンツ目標FPS</div>
+        <div class="v" id="htDbgFps">— <small>fps</small></div>
+      </div>
+      <div class="ht-debug-stat">
+        <div class="l">実測FPS（指数移動平均）</div>
+        <div class="v" id="htDbgFpsEma">— <small>fps</small></div>
+      </div>
+      <div class="ht-debug-stat">
+        <div class="l">静止コンテンツ描画上限</div>
+        <div class="v" id="htDbgMaxPx">— <small>MP</small></div>
+      </div>
+      <div class="ht-debug-stat">
+        <div class="l">カメラ＋Max Photo上限</div>
+        <div class="v" id="htDbgCamPx">— <small>MP</small></div>
+      </div>
+      <div class="ht-debug-stat">
+        <div class="l">CPU論理コア数 ／ メモリ</div>
+        <div class="v" id="htDbgHw">—</div>
+      </div>
+      <div class="ht-debug-stat">
+        <div class="l">自動降格の発生回数</div>
+        <div class="v" id="htDbgDemotions">0</div>
+      </div>
+    </div>
+    <div class="res-section" style="margin-bottom:6px;">
+      <div class="res-label">イベントログ</div>
+      <div class="ht-debug-log" id="htDebugLog">
+        <div class="ht-debug-empty">まだイベントはありません</div>
+      </div>
+    </div>
+    <div class="ht-debug-hint">ロゴを長押しでこのパネルの表示・非表示を切り替えられます</div>
   </div>
 
   <!-- ビューア：最初に見える位置に配置 -->
@@ -708,15 +837,68 @@
     idleTimer: null,
     IDLE_MS: 3000,
 
+    // -- デバッグ／診断用（既定では誰も見ない。開発者パネルがある時だけ使う） --
+    score: 0,
+    avgDraw: 0,
+    avgPix: 0,
+    cores: 0,
+    mem: 0,
+    pixFast: false,
+    fpsEMA: 0,              // 実測FPSの指数移動平均
+    fpsSamples: 0,
+    events: [],             // {t, kind:'bench'|'demote', detail}
+    demotions: 0,
+    onChange: null,         // デバッグパネルが登録するコールバック（任意）
+
+    _log(kind, detail){
+      this.events.push({ t: Date.now(), kind, detail });
+      if(this.events.length > 50) this.events.shift();
+      if(this.onChange) this.onChange();
+    },
+
+    _applyTier(tier){
+      this.tier = tier;
+      if(tier === "high"){
+        this.maxDrawPx = 4096*2160;
+        this.camDrawPx = this.pixFast ? 1280*720 : 854*480;
+        this.targetFps = 60;
+        this.camFps    = this.pixFast ? 30 : 24;
+      } else if(tier === "mid"){
+        this.maxDrawPx = 1920*1080;
+        this.camDrawPx = this.pixFast ? 854*480 : 640*360;
+        this.targetFps = 30;
+        this.camFps    = this.pixFast ? 24 : 20;
+      } else {
+        this.tier      = "low";
+        this.maxDrawPx = 1280*720;
+        this.camDrawPx = 480*270;
+        this.targetFps = 20;
+        this.camFps    = 15;
+      }
+      Object.keys(offCache).forEach(k => delete offCache[k]);
+    },
+
     /* ベンチマーク：描画速度 + ピクセル処理速度を両方計測 */
     async bench(){
       const bc = document.createElement("canvas");
       bc.width = 512; bc.height = 288;
       const bg = bc.getContext("2d", { willReadFrequently: true });
+
+      // 実際の表示時に行われる「小さい内部解像度→画面サイズへの拡大」コストも計測する。
+      // 画面の実ピクセル幅（DPR込み・上限2倍）を使い、本番の負荷に近づける。
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dispW = Math.round(Math.min(window.innerWidth, 900) * dpr);
+      const dispH = Math.round(dispW * 9 / 16);
+      const outC = document.createElement("canvas");
+      outC.width = dispW; outC.height = dispH;
+      const outCtx = outC.getContext("2d");
+      outCtx.imageSmoothingEnabled = true;
+      outCtx.imageSmoothingQuality = "high";
+
       const RUNS = 12;
-      let drawTotal = 0, pixTotal = 0;
+      let drawTotal = 0, pixTotal = 0, scaleTotal = 0;
       for(let i = 0; i < RUNS; i++){
-        // 描画速度
+        // 描画速度（コンテンツ生成）
         const t0 = performance.now();
         drawPatternScene(bg, 512, 288);
         drawSceneScene(bg, 512, 288);
@@ -727,43 +909,35 @@
         mpEnhance(id.data, 512, 288);
         bg.putImageData(id, 0, 0);
         pixTotal += performance.now() - t1;
+        // 拡大描画コスト（実際の画面表示と同じ拡大処理）
+        const t2 = performance.now();
+        outCtx.drawImage(bc, 0, 0, 512, 288, 0, 0, dispW, dispH);
+        scaleTotal += performance.now() - t2;
         if(i % 4 === 3) await new Promise(r => requestAnimationFrame(r));
       }
-      const avgDraw = drawTotal / RUNS;
-      const avgPix  = pixTotal  / RUNS;
+      const avgDraw  = drawTotal  / RUNS;
+      const avgPix   = pixTotal   / RUNS;
+      const avgScale = scaleTotal / RUNS;
       const cores = navigator.hardwareConcurrency || 2;
       const mem   = navigator.deviceMemory || 2;
-      // 描画スコア
-      const score = (1000 / Math.max(1, avgDraw)) * 0.6
+      // 描画スコア（コンテンツ生成 + 拡大描画 + ハードウェア概要）
+      const drawCost = avgDraw + avgScale; // 1フレームあたりの実コストに近い合算
+      const score = (1000 / Math.max(1, drawCost)) * 0.6
                   + (Math.min(cores, 16) / 16) * 100 * 0.25
                   + (Math.min(mem,   8)  /  8) * 100 * 0.15;
       // ピクセル処理速度から1フレーム余裕を決定（目安：8ms以内なら高速）
       const pixFast = avgPix < 8;
 
-      if(score >= 75){
-        this.tier      = "high";
-        this.maxDrawPx = 4096*2160;
-        this.camDrawPx = pixFast ? 1280*720 : 854*480;
-        this.targetFps = 60;
-        this.camFps    = pixFast ? 30 : 24;
-      } else if(score >= 28){
-        this.tier      = "mid";
-        this.maxDrawPx = 1920*1080;
-        this.camDrawPx = pixFast ? 854*480 : 640*360;
-        this.targetFps = 30;
-        this.camFps    = pixFast ? 24 : 20;
-      } else {
-        this.tier      = "low";
-        this.maxDrawPx = 1280*720;
-        this.camDrawPx = 480*270;
-        this.targetFps = 20;
-        this.camFps    = 15;
-      }
+      this.score = score; this.avgDraw = avgDraw; this.avgPix = avgPix; this.avgScale = avgScale;
+      this.cores = cores; this.mem = mem; this.pixFast = pixFast;
+
+      const tier = score >= 75 ? "high" : score >= 28 ? "mid" : "low";
+      this._applyTier(tier);
       this.ready = true;
-      Object.keys(offCache).forEach(k => delete offCache[k]);
+      this._log("bench", { tier, score: Math.round(score), avgDraw: avgDraw.toFixed(1), avgPix: avgPix.toFixed(1), avgScale: avgScale.toFixed(1) });
     },
 
-    /* 描画すべきか判定 */
+    /* 描画すべきか判定（目標FPSに基づくソフトスロットリング） */
     shouldDraw(now, isCamera){
       if(!this.ready) return true;
       const fps = isCamera ? this.camFps : this.targetFps;
@@ -781,6 +955,38 @@
         w: Math.max(1, Math.round(logW * scale)),
         h: Math.max(1, Math.round(logH * scale))
       };
+    },
+
+    /* 実行時モニタリング：実フレーム時間から実測FPSを更新し、
+       目標を継続的に下回る場合のみ自動で1段階降格する（昇格は自動でしない＝チラつき防止）。
+       サーマルスロットリングや、バックグラウンドタブからの復帰直後の急激な負荷増に対応。 */
+    _consecutiveSlow: 0,
+    _lastDemoteAt: -Infinity,
+    DEMOTE_GRACE_MS: 8000,        // 降格後はこの間、再評価しない
+    SLOW_STREAK_NEEDED: 90,       // 約1.5秒分（60fps基準）連続で遅い場合のみ降格
+    observeFrame(dt, isCamera){
+      if(!this.ready || isCamera) { return; } // カメラはFPS可変が前提のため対象外
+      const instFps = dt > 0 ? 1000 / dt : this.targetFps;
+      this.fpsSamples++;
+      const alpha = 0.08;
+      this.fpsEMA = this.fpsSamples === 1 ? instFps : (this.fpsEMA * (1 - alpha) + instFps * alpha);
+
+      const now = performance.now();
+      const slow = this.fpsEMA < this.targetFps * 0.6; // 目標の60%未満が続く＝明確に苦しい
+      this._consecutiveSlow = slow ? this._consecutiveSlow + 1 : 0;
+
+      if(this._consecutiveSlow >= this.SLOW_STREAK_NEEDED && (now - this._lastDemoteAt) > this.DEMOTE_GRACE_MS){
+        const next = this.tier === "high" ? "mid" : this.tier === "mid" ? "low" : null;
+        if(next){
+          const from = this.tier;
+          this._applyTier(next);
+          this._lastDemoteAt = now;
+          this._consecutiveSlow = 0;
+          this.demotions++;
+          this._log("demote", { from, to: next, fpsEMA: Math.round(this.fpsEMA) });
+        }
+      }
+      if(this.onChange) this.onChange();
     },
 
     /* アイドル管理 */
@@ -810,6 +1016,105 @@
       closeThemeMenu();
     });
   });
+
+  /* ============================================================
+     HTデバッグパネル（オプトイン・開発者向け診断シート）
+     既定の体験は一切変えず、見たい人だけがロゴ長押しか
+     ?ht=debug で開ける「裏側の見える化」窓。
+  ============================================================ */
+  (function setupHtDebugPanel(){
+    const sheet = document.getElementById("htDebugSheet");
+    const backdrop = document.getElementById("htDebugBackdrop");
+    const closeBtn = document.getElementById("htDebugClose");
+    const logoEl = document.getElementById("logoEl");
+    const dbg = {
+      tier: document.getElementById("htDbgTierVal"),
+      score: document.getElementById("htDbgScore"),
+      fps: document.getElementById("htDbgFps"),
+      fpsEma: document.getElementById("htDbgFpsEma"),
+      maxPx: document.getElementById("htDbgMaxPx"),
+      camPx: document.getElementById("htDbgCamPx"),
+      hw: document.getElementById("htDbgHw"),
+      demotions: document.getElementById("htDbgDemotions"),
+      log: document.getElementById("htDebugLog"),
+      tierStat: document.getElementById("htDbgTier"),
+    };
+    let refreshTimer = null;
+
+    const TIER_LABEL = { high:"High（高性能）", mid:"Standard（標準）", low:"Light（省負荷）" };
+
+    function render(){
+      dbg.tier.textContent = HT.ready ? (TIER_LABEL[HT.tier] || HT.tier) : "計測中…";
+      dbg.tierStat.classList.toggle("tier-high", HT.tier === "high");
+      dbg.tierStat.classList.toggle("tier-low", HT.tier === "low");
+      dbg.score.textContent = HT.ready ? Math.round(HT.score) : "—";
+      dbg.fps.innerHTML = (HT.ready ? HT.targetFps : "—") + " <small>fps 目標</small>";
+      dbg.fpsEma.innerHTML = (HT.fpsEMA ? Math.round(HT.fpsEMA) : "—") + " <small>fps 実測</small>";
+      dbg.maxPx.innerHTML = (HT.ready ? (HT.maxDrawPx/1e6).toFixed(2) : "—") + " <small>MP上限</small>";
+      dbg.camPx.innerHTML = (HT.ready ? (HT.camDrawPx/1e6).toFixed(2) : "—") + " <small>MP上限</small>";
+      dbg.hw.textContent = HT.ready ? `${HT.cores}コア ／ ${HT.mem}GB` : "—";
+      dbg.demotions.textContent = HT.demotions;
+
+      if(HT.events.length === 0){
+        dbg.log.innerHTML = `<div class="ht-debug-empty">まだイベントはありません</div>`;
+      } else {
+        dbg.log.innerHTML = HT.events.slice().reverse().map(ev=>{
+          const time = new Date(ev.t).toLocaleTimeString("ja-JP", { hour12:false });
+          let label = "";
+          if(ev.kind === "bench"){
+            label = `初回計測 → ${TIER_LABEL[ev.detail.tier] || ev.detail.tier}（スコア${ev.detail.score}）`;
+          } else if(ev.kind === "demote"){
+            label = `自動降格 ${TIER_LABEL[ev.detail.from]} → ${TIER_LABEL[ev.detail.to]}（実測${ev.detail.fpsEMA}fps）`;
+          }
+          return `<div class="ht-debug-log-row ${ev.kind}"><span class="t">${time}</span><span class="e">${label}</span></div>`;
+        }).join("");
+      }
+    }
+
+    function open(){
+      sheet.classList.add("open");
+      backdrop.classList.add("open");
+      render();
+      if(refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(render, 1000);
+      HT.onChange = render;
+    }
+    function close(){
+      sheet.classList.remove("open");
+      backdrop.classList.remove("open");
+      if(refreshTimer){ clearInterval(refreshTimer); refreshTimer = null; }
+      HT.onChange = null;
+    }
+
+    closeBtn.addEventListener("click", close);
+    backdrop.addEventListener("click", close);
+
+    // ロゴの長押し（600ms）で開閉トグル
+    let pressTimer = null;
+    function startPress(){
+      pressTimer = setTimeout(()=>{
+        if(sheet.classList.contains("open")) close(); else open();
+      }, 600);
+    }
+    function cancelPress(){ clearTimeout(pressTimer); }
+    logoEl.addEventListener("pointerdown", startPress);
+    logoEl.addEventListener("pointerup", cancelPress);
+    logoEl.addEventListener("pointerleave", cancelPress);
+    logoEl.addEventListener("pointercancel", cancelPress);
+    logoEl.addEventListener("contextmenu", (e)=>e.preventDefault()); // 長押しでのメニュー誤発火防止
+
+    // ?ht=debug が付いている場合は最初から開く（共有・サポート対応用）
+    try{
+      const params = new URLSearchParams(location.search);
+      if(params.get("ht") === "debug"){
+        // ベンチ完了を待ってから開く（HT.readyになるまで軽くポーリング）
+        const waitReady = setInterval(()=>{
+          if(HT.ready){ clearInterval(waitReady); open(); }
+        }, 200);
+        setTimeout(()=>clearInterval(waitReady), 5000);
+      }
+    }catch(e){ /* URL解析失敗時は無視 */ }
+  })();
 
   /* ============ 解像度定義 ============ */
   const RES = [
@@ -1163,6 +1468,8 @@
     if(!HT.shouldDraw(now, isCamera)) return;
     HT.lastFrameTime = now;
 
+    const _drawStart = performance.now();
+
     frameCount++;
     ctx.imageSmoothingEnabled = state.smooth;
     ctx.imageSmoothingQuality = "high";
@@ -1225,6 +1532,9 @@
         ctx.restore();
       }
     }
+
+    // 実描画コストを継続観測し、サーマルスロットリング等による劣化があれば自動で1段階降格する
+    HT.observeFrame(performance.now() - _drawStart, isCamera);
   }
 
   /* ============ UI構築：解像度ボタン ============ */
